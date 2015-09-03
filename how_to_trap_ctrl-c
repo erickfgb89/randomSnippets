@@ -1,0 +1,22 @@
+#!/bin/bash
+# trap ctrl-c and call ctrl_c()
+trap ctrl_c INT
+
+function ctrl_c() {
+        printf "\n\n** Trapped CTRL-C\n\n"
+        exit 3
+}
+delay=0.15
+spinstr='|/-\'
+x=1
+printf "Press CTRL-C to stop before we puke!!!"
+while [ $x -le 100 ] ; do
+        temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+        x=$(( $x + 1 ))
+    done
+    printf "    \b\b\b\b Done!"
+    echo
