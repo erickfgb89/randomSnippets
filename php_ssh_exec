@@ -1,0 +1,34 @@
+Cool php ssh2_ functions stuff
+
+Make sure you have the ssh keys in a location OUTSIDE the web root for security reasons
+
+$host_name = '<remote host ip or name>;
+
+$connection = ssh2_connect($ip_address, 22, array('hostkey'=>'ssh-rsa'));
+
+if (ssh2_auth_pubkey_file($connection, 'root',
+                         '/var/hpanel/host_staging/ssh_keys/'.$host_name.'_rsa.pub',
+                         '/var/hpanel/host_staging/ssh_keys/'.$host_name.'_rsa', 'secret')) {
+ echo "Public Key Authentication Successful\n";
+} else {
+ die('Public Key Authentication Failed');
+}
+
+echo '<br />';
+echo '<pre>';
+$stream = ssh2_exec($connection, $command);
+stream_set_blocking($stream, true);
+$stream_out = ssh2_fetch_stream($stream, SSH2_STREAM_STDIO);
+while($line = fgets($stream_out)) {
+          flush();
+          echo htmlentities($line)."<br />";
+      }
+echo '</pre>';
+echo '<br />';
+unset($connection);
+
+
+$command can be anything: 
+$command = "getent passwd | awk -F: '$3 > 500 { print $1 }' |grep -v vmail| sort -d |xargs -L1 id";
+
+Works like a charm...
