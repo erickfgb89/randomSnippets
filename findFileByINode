@@ -1,1 +1,7 @@
 ##joe's find
+
+Ever wonder how to delete a file in Linux where it was a special char and escaping it didnt work? Well...
+
+First, find the inode number by ls -i <directory>, then
+
+find ./ -inum number -exec rm -i {} ;
