@@ -1,0 +1,42 @@
+This scrip will read a maillog file from CentOS/RedHat 5/6 and determine how many times a remote IP has failed a login.
+If its over 3 times, then it addes the IP to the firewall... You need to modify the echo lines for iptables and simply use
+the iptables command. The number 1 after the INPUT specified that it will preseed any other table, so make sure this works in 
+your environment.
+
+Also, you can have a whitelist file. This will be called ip_block_whitelist and must reside in the same directory as the 
+script. Again, this can all be hacked :)
+
+You can also use regexp to parse any log file for any reason... I just use this for mail auth failures. There are two examples
+in the below code... The commented out one was for another system, but does basically the same thing... I left it in
+as an example.
+
+#!/bin/bash
+
+FILE=/var/log/maillog;
+
+# for ip in $(cat /var/log/maillog |grep 'SASL LOGIN authentication failed' |awk {'print $7'} |grep -o -P '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' |sort |uniq);
+for ip in $(cat /var/log/maillog |grep 'auth failed' |grep -o -P 'rip=[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' |awk -F= '{print $2}' |sort |uniq);
+
+ do { COUNT=`grep $ip $FILE |wc -l`;
+ if [[ "$COUNT" -gt "3" ]]; then
+
+        grep $ip ./ip_block_whitelist > /dev/null 2>&1
+                if [ $? -eq 0 ] ; then
+                        echo "$ip is whitelisted... Not adding"
+                        break
+                fi
+
+        grep $ip ./ip_block_list > /dev/null 2>&1
+                if [ $? -eq 0 ] ; then
+                        echo "Not adding $ip to the firewall... Already there"
+                                else
+                        echo "adding $ip to the firewall"
+                        echo "#iptables -A INPUT 1 -s $ip -j LOG_DROP" >> fake_iptables
+                fi
+
+        echo "$COUNT:   $ip"
+
+
+ fi }
+
+done
