@@ -1,0 +1,48 @@
+#!/bin/bash
+# This scripts runs once a day and creates the daily backups
+# on an daily basis.
+# http://www.mikerubel.org/computers/rsync_snapshots/
+
+SNAPSHOT_DIR=/system_backup
+ECHO=/bin/echo
+MOUNT=/bin/mount
+RM=/bin/rm
+MV=/bin/mv
+CP=/bin/cp
+TOUCH=/bin/touch
+RSYNC=/usr/bin/rsync
+. /root/.password_file
+$MOUNT -o remount,rw $SNAPSHOT_DIR
+                    if [ $? -gt 0 ] ; then
+                            echo "Could Not remount Backup Device... Please check!!!"
+                            exit
+                    fi
+
+if [ -d $SNAPSHOT_DIR/daily.6 ] ; then $RM -rf $SNAPSHOT_DIR/daily.6 ; fi
+
+if [ -d $SNAPSHOT_DIR/daily.5 ] ; then $MV $SNAPSHOT_DIR/daily.5 $SNAPSHOT_DIR/daily.6 ; fi
+
+if [ -d $SNAPSHOT_DIR/daily.4 ] ; then $MV $SNAPSHOT_DIR/daily.4 $SNAPSHOT_DIR/daily.5 ; fi
+
+if [ -d $SNAPSHOT_DIR/daily.3 ] ; then $MV $SNAPSHOT_DIR/daily.3 $SNAPSHOT_DIR/daily.4 ; fi
+
+if [ -d $SNAPSHOT_DIR/daily.2 ] ; then $MV $SNAPSHOT_DIR/daily.2 $SNAPSHOT_DIR/daily.3 ; fi
+
+if [ -d $SNAPSHOT_DIR/daily.1 ] ; then $MV $SNAPSHOT_DIR/daily.1 $SNAPSHOT_DIR/daily.2 ; fi
+
+if [ -d $SNAPSHOT_DIR/daily.0 ] ; then $MV $SNAPSHOT_DIR/daily.0 $SNAPSHOT_DIR/daily.1 ; fi
+
+if [ -d $SNAPSHOT_DIR/hourly.3 ] ; then $CP -al $SNAPSHOT_DIR/hourly.3 $SNAPSHOT_DIR/daily.0 ; fi
+
+dayofweek=`date +%A`
+currentdate=`date +%m"-"%d"-"%y`
+if [ $dayofweek == "Sunday" ] ; then
+        $CP -al $SNAPSHOT_DIR/daily.0 $SNAPSHOT_DIR/$dayofweek-Full-Backup-$currentdate ;
+fi
+
+$MOUNT -o remount,ro $SNAPSHOT_DIR
+                    if [ $? -gt 0 ] ; then
+                            echo "Could Not remount Backup Device... Please check!!!"
+                            exit
+                    fi
+
