@@ -1,0 +1,48 @@
+#!/bin/bash
+# This script will backup user imap mail files and data
+# as well as valid system data on an hourly basis.
+# REFERANCE: http://www.mikerubel.org/computers/rsync_snapshots/
+
+SNAPSHOT_DIR=/system_backup
+MOUNT=/bin/mount
+UMOUNT=/bin/umount
+RM=/bin/rm
+MV=/bin/mv
+CP=/bin/cp
+TOUCH=/bin/touch
+RSYNC=/usr/bin/rsync
+#RSYNC_OPTIONS='-rltzuv'
+RSYNC_OPTIONS='-azuv'
+. /root/.password_file
+$MOUNT -o remount,rw $SNAPSHOT_DIR
+                    if [ $? -gt 0 ] ; then
+                            echo "Could Not remount Backup Device... Please check!!!"
+                            exit
+                    fi
+
+# Rotate Backup Directories
+if [ -d $SNAPSHOT_DIR/hourly.3 ] ; then $RM -rf $SNAPSHOT_DIR/hourly.3 ; fi
+
+if [ -d $SNAPSHOT_DIR/hourly.2 ] ; then $MV $SNAPSHOT_DIR/hourly.2 $SNAPSHOT_DIR/hourly.3 ; fi
+
+if [ -d $SNAPSHOT_DIR/hourly.1 ] ; then $MV $SNAPSHOT_DIR/hourly.1 $SNAPSHOT_DIR/hourly.2 ; fi
+
+if [ -d $SNAPSHOT_DIR/hourly.0 ] ; then $CP -al $SNAPSHOT_DIR/hourly.0 $SNAPSHOT_DIR/hourly.1 ; fi
+
+# System Backup
+$RSYNC $RSYNC_OPTIONS --delete --recursive --files-from '/root/.system_rsync_includes' / $SNAPSHOT_DIR/hourly.0
+
+# Data Base Backup
+if [ ! -d $SNAPSHOT_DIR/hourly.0/database_backup ] ; then mkdir $SNAPSHOT_DIR/hourly.0/database_backup ; fi
+$RM -rf $SNAPSHOT_DIR/hourly.0/database_backup/*.sql.gz
+
+for db_name in br_lab_ip_data lab_ip_data lab_inventory mysql ; do
+        mysqldump -u$mysql_username -p$mysql_password --add-drop-table $db_name | gzip > $SNAPSHOT_DIR/hourly.0/database_backup/$db_name.sql.gz ;
+        done
+
+$TOUCH $SNAPSHOT_DIR/hourly.0
+$MOUNT -o remount,ro $SNAPSHOT_DIR
+                    if [ $? -gt 0 ] ; then
+                            echo "Could Not remount Backup Device... Please check!!!"
+                            exit
+                    fi
