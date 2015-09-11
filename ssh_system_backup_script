@@ -1,0 +1,32 @@
+#!/bin/bash
+
+RSYNC_OPTIONS='-azuv'
+ip_address=192.168.0.2
+remote_backup_location='/external_storage'
+
+# Password file for mysqldump
+. /root/.password_file
+
+ps aux |grep rsync |grep -v grep > /dev/null
+        if [[ $? == 0 ]] ; then
+        exit
+        fi
+
+# Rotate Backup Directories
+ssh $ip_address "[ -d $remote_backup_location/hourly.3 ] && rm -rf $remote_backup_location/hourly.3"
+ssh $ip_address "[ -d $remote_backup_location/hourly.2 ] && mv $remote_backup_location/hourly.2 $remote_backup_location/hourly.3"
+ssh $ip_address "[ -d $remote_backup_location/hourly.1 ] && mv $remote_backup_location/hourly.1 $remote_backup_location/hourly.2"
+ssh $ip_address "[ -d $remote_backup_location/hourly.0 ] && cp -al $remote_backup_location/hourly.0 $remote_backup_location/hourly.1"
+
+# System Backup
+rsync $RSYNC_OPTIONS -e "ssh" --delete --recursive --files-from '/root/.system_rsync_includes' / $ip_address:$remote_backup_location/hourly.0
+
+# Data Base Backup
+ssh $ip_address "[ ! -d $remote_backup_location/hourly.0/database_backup ] && mkdir $remote_backup_location/hourly.0/database_backup"
+ssh $ip_address "rm -rf $remote_backup_location/hourly.0/database_backup/*.sql.gz"
+
+for db_name in roundcubemail mysql owncloud syspass cpg digikam_thumb digikam wcs psychostats3_1 ; do
+        mysqldump -u$mysql_username -p$mysql_password --add-drop-table --events $db_name | gzip > /tmp/$db_name.sql.gz
+        rsync $RSYNC_OPTIONS -e "ssh" /tmp/$db_name.sql.gz $ip_address:$remote_backup_location/hourly.0/database_backup/
+        done
+rm -rf /tmp/*.sql.gz

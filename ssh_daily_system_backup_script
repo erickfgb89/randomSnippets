@@ -1,0 +1,23 @@
+#!/bin/bash
+
+ip_address=192.168.0.2
+remote_backup_location='/external_storage'
+ps aux |grep rsync |grep -v grep > /dev/null
+        if [[ $? == 0 ]] ; then
+        exit
+        fi
+ssh $ip_address "[ -d $remote_backup_location/daily.6 ] && rm -rf $remote_backup_location/daily.6"
+ssh $ip_address "[ -d $remote_backup_location/daily.5 ] && mv $remote_backup_location/daily.5 $remote_backup_location/daily.6"
+ssh $ip_address "[ -d $remote_backup_location/daily.4 ] && mv $remote_backup_location/daily.4 $remote_backup_location/daily.5"
+ssh $ip_address "[ -d $remote_backup_location/daily.3 ] && mv $remote_backup_location/daily.3 $remote_backup_location/daily.4"
+ssh $ip_address "[ -d $remote_backup_location/daily.2 ] && mv $remote_backup_location/daily.2 $remote_backup_location/daily.3"
+ssh $ip_address "[ -d $remote_backup_location/daily.1 ] && mv $remote_backup_location/daily.1 $remote_backup_location/daily.2"
+ssh $ip_address "[ -d $remote_backup_location/daily.0 ] && mv $remote_backup_location/daily.0 $remote_backup_location/daily.1"
+ssh $ip_address "[ -d $remote_backup_location/hourly.3 ] && cp -al $remote_backup_location/hourly.3 $remote_backup_location/daily.0"
+
+dayofweek=`date +%A`
+currentdate=`date +%m"-"%d"-"%y`
+if [ $dayofweek == "Sunday" ] ; then
+	ssh $ip_address "cp -al $remote_backup_location/daily.0 $remote_backup_location/$dayofweek-Full-Backup-$currentdate"
+fi
+
