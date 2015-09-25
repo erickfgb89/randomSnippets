@@ -36,9 +36,12 @@ $RSYNC $RSYNC_OPTIONS --delete --recursive --files-from '/root/.system_rsync_inc
 if [ ! -d $SNAPSHOT_DIR/hourly.0/database_backup ] ; then mkdir $SNAPSHOT_DIR/hourly.0/database_backup ; fi
 $RM -rf $SNAPSHOT_DIR/hourly.0/database_backup/*.sql.gz
 
-for db_name in br_lab_ip_data lab_ip_data lab_inventory mysql ; do
-        mysqldump -u$mysql_username -p$mysql_password --add-drop-table $db_name | gzip > $SNAPSHOT_DIR/hourly.0/database_backup/$db_name.sql.gz ;
-        done
+databases=$(mysql -p$mysql_password -Nse 'show databases')
+for db_name in ${databases[@]} ; do
+        if [[ $db_name != 'information_schema' ]] && [[ $db_name != 'performance_schema' ]]; then
+                mysqldump -u$mysql_username -p$mysql_password --add-drop-table --single-transaction --events $db_name | gzip > $SNAPSHOT_DIR/hourly.0/database_backup/$db_name.sql.gz
+        fi
+done
 
 $TOUCH $SNAPSHOT_DIR/hourly.0
 $MOUNT -o remount,ro $SNAPSHOT_DIR

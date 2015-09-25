@@ -25,8 +25,12 @@ rsync $RSYNC_OPTIONS -e "ssh" --delete --recursive --files-from '/root/.system_r
 ssh $ip_address "[ ! -d $remote_backup_location/hourly.0/database_backup ] && mkdir $remote_backup_location/hourly.0/database_backup"
 ssh $ip_address "rm -rf $remote_backup_location/hourly.0/database_backup/*.sql.gz"
 
-for db_name in roundcubemail mysql owncloud syspass cpg digikam_thumb digikam wcs psychostats3_1 ; do
-        mysqldump -u$mysql_username -p$mysql_password --add-drop-table --events $db_name | gzip > /tmp/$db_name.sql.gz
-        rsync $RSYNC_OPTIONS -e "ssh" /tmp/$db_name.sql.gz $ip_address:$remote_backup_location/hourly.0/database_backup/
-        done
+databases=$(mysql -p$mysql_password -Nse 'show databases')
+for db_name in ${databases[@]} ; do
+        if [[ $db_name != 'information_schema' ]] && [[ $db_name != 'performance_schema' ]]; then
+                mysqldump -u$mysql_username -p$mysql_password --add-drop-table --single-transaction --events $db_name | gzip > /tmp/$db_name.sql.gz
+                rsync $RSYNC_OPTIONS -e "ssh" /tmp/$db_name.sql.gz $ip_address:$remote_backup_location/hourly.0/database_backup/
+        fi
+done
+
 rm -rf /tmp/*.sql.gz
