@@ -1,0 +1,201 @@
+http://www.nigelpond.com/2012/02/10/capturing-analysing-linux-performance-data-sar/
+
+Overview
+
+In order to analyse Linux performance you need to first enable the collection of this information on the Linux machine.  The tool used in this knowledge brief is sar which is part of sysstat. This data then can be collected and passed through an ETL process where the information can then be analysed.  In this case I have used shell scripts to perform the ETL component and a MySQL database.
+
+This document shows how to deploy and use the attached scripts:
+
+backup-sar.sh – script to make a copy of the text output from sar
+
+sar-db-load.sh – script to parse the text output and format it for loading into a MySQL database
+
+sar.sql – script to create the MySQL database
+
+You can find the scripts and the missing screenshots here: http://www.nigelpond.com/uploads/
+
+Caveats
+
+For the creation of these scripts I have used a Virtual Machine based on the 64bit Linux distribution Fedora Core 16.  The sar output may differ for other versions of Linux so the scripts may have to be modified for your specific environment.  Also, where possible, I have used the GUI tools – you may not have this available so you may need to Google for the equivalent command line commands.
+
+Everything I do here is as root.  This is fine for testing but it is recommended that you check whether this is OK for customer systems.  Many systems will have sysstat already installed and collecting data so you may not have to install it or setup the crontab scheduler.
+
+Install sysstat for sar and iostat
+
+In order to start collecting system activity reporting (sar) data you need to install sysstat.  This can be completed via the GUI tool ‘Add/Remove Software’.  You will need an internet connection for this to work.
+
+Applications -> System Tools -> Add/Remove Software
+
+The tool is self-explanatory; type in the name of the software you wish to install, in this case sysstat, and hit return.  A message in the bottom left-corner of the screen will initially say you’re request is waiting in a queue and then you should see results appear in the top-right section of the window.  Then tick the box next to the sysstat result and hit the Apply button in the bottom right-hand corner of the window.  When the installation is complete the screen will refresh and you should have an open box symbol as in the screen shot below.
+
+Figure 1: Install sysstat
+
+Install MySQL Client, MySQL Server & phpMyAdmin
+
+Utilizing the same ‘Add/Remove Software’ tool; search for and install the MySQL client and server components as well as the MySQL web administration tool phpMyAdmin.  There is nothing contained within this document that requires the use of a web tool but I have found it to be very beneficial in the past when managing MySQL databases.  Everything that’s done here can be done on the command line if you so wish.
+
+Once the above installations are complete start the Apache web (httpd) and MySQL (mysqld) services; from the
+command line, as root, type:
+
+# service mysqld start
+
+# service httpd start
+
+Create the crontab scheduler entries
+
+My test system root account didn’t have a crontab but yours may.  Be careful not to change or over-write any existing cron entries.  For those unfamiliar with the vi editor should take particular care.
+
+Edit the crontab like this:
+
+# crontab –e
+
+ 
+
+Make your file look like this:
+
+# Crontab for systat
+
+# Activity reports culled and updated every 10 mins ofevery day
+
+*/10 * * * * root /usr/lib64/sa/sa1 1 1
+
+# Update log sar reports every day at 23:57
+
+57 23 * * * root /usr/lib64/sa/sa2 –A
+
+Once you’ve exited from the edit you can view your changes by running the following command:
+
+# crontab -l
+
+Create folder structure
+
+The scripts I have written require a specific folder structure: if you cannot have the same structure you
+will have to modify the scripts to suit your own requirements.  From the root login directory run the following
+commands to create the required sub-folders:
+
+# mkdir performanceStats
+
+# cd performanceStats
+
+# mkdir csv/ workingDir/ sarBackups/ formattedDir
+
+Copy across the scripts and make them executable
+
+My Fedora distribution came with SSH/SFTP already setup so I was able to configure my PC FTP client (FileZilla – free from sourceforge) and SFTP the files across.  Put both the attached scripts into the performanceStats folder and chmod them to make them executable:
+
+# chmod +x backup-sar.sh
+
+# chmod +x sar-db-load.sh
+
+NB:  If you have viewed or edited these files on a Windows machine you may have to convert them back to a *nix format.  You can do this with the following commands:
+
+# dos2unix backup-sar.sh
+
+# dos2unix sar-db-load.sh
+
+You should end up with the contents of your performanceStats folder looking something like this:
+
+ 
+
+Figure 2: Folder Structure
+
+NB: Don’t forget to also copy across the database schema script: sar.sql
+
+Check whether sar data is being collected
+Since editing the crontab file the system should have picked up your changes and already started collecting system performance data.  By executing the following commands you should see at least one file called saXX – where XX is the day of the month.
+
+# cd /var/log/sa
+
+# ls –lrt
+
+The second line that you entered into the crontab file won’t run until 23:57 but you can run the command now to test that you’re able to convert the saXX output (which is binary) into the sarXX output (which is text).  So, if you run the following command you should now see a sarXX file present in the same folder:
+
+# /usr/lib64/sa/sa2 –A
+
+ 
+
+Test the backup script:  backup-sar.sh
+When you have a sarXX file to work with you can then test the two scripts I have provided.  The first script to run simply copies the sarXX file and renames it.  When you’re confident with this entire process and you wish to collect data all the time you can add another line to the crontab that will automate this component.
+
+# cd /root/performanceStats
+
+# ./backup-sar.sh
+
+# ls sarBackups/
+
+You should see a file that is similar to this:
+
+localhost-sar06-20120207.bckup
+
+Creating the Database
+The second script (sar-db-load.sh) parses this backup file and splits each type of data into separate CSV files.  It then takes each of these files and loads them into the MySQL database.  But first you need to create the database, a user, and all the tables.  The examples below use my details; make sure you change them for your own.
+
+On the command line enter MySQL:
+
+# mysql
+
+mysql> CREATE USER ‘fed’@’localhost’ IDENTIFIED BY ‘fed’;
+
+mysql> CREATE DATABASE sar;
+
+mysql> GRANT ALL ON sar.* TO ‘fed’@’localhost’;
+
+Creating the tables
+Login to the web administrator tool phpMyAdmin using the user details you created in the previous step:
+
+http://localhost/phpMyAdmin
+
+Once logged you should see an icon for the database you created earlier – click on it and then click on the
+“Import” tab across the top.
+
+As in the image below; browse to where you have the sar.sql script and hit the button marked ‘Go’.
+
+ 
+
+Figure 3: Loading the schema SQL
+
+You should then see a successful message like the following:
+
+ 
+
+Figure 4: Successful table creation
+
+Performing a test run of the DB load script
+You should now be collecting data and have a single backup file on which to test.  The script sar-db-load.sh will now parse that backup file and load the extracted data into our database.
+
+You run the script as follows:
+
+# ./sar-db-load.sh
+
+You should see output similar to this:
+
+File: localhost-sar06-20120207.bkup
+
+New file: localhost-sar06-20120207
+
+In the formattedDir folder there should be 17 CSV files.  Perform the “wc
+–l” command as in the following screenshot so that we can validate the correct number of rows have been entered into our database.
+
+ 
+
+Figure 5: CSV file row counts
+
+Back in your phpMyAdmin browser window refresh the data using the green-circular arrow (below the orange ‘n’ in phpMyAdmin).  Then you can hover over each of the table names to see how many rows they contain.  The row count should be one less than what we saw in the above output as there is a header line that has been removed.
+
+ 
+
+Figure 6: Validating the data load.
+
+Once you’re happy that all the test data has loaded successfully you can empty the tables just by clicking on the ‘Empty’ buttons for each table.
+
+Housekeeping
+
+Once you’re happy with the process and everything is working as it should you should clean out the CSV files from the formattedDir folder before running another extract.  Also be aware that the DB load script will run ALL the files that it finds in the sarBackup folder which will be populated every day via the cron job.  So, it is important to backup each days’ file when it’s been successfully processed.  Of course all these extra tasks can be easily automated with simple updates to the existing scripts.
+
+Understanding sar
+
+Of course in order to be able to analyse the sar output you need to know what it’s telling you.  Luckily there are reams of pages out there on the web and also the ‘man’ pages on the command line.  One particularly good web page I found was this:
+
+http://sebastien.godard.pagesperso-orange.fr/man_sar.html
+
+
