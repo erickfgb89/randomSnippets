@@ -4,16 +4,16 @@
 # and whether or not to use special chars.
 
 # With special chars
-# tr -cd 'A-Z-a-z-0-9-!-)' < /dev/urandom | fold -w30 | head -n1 |cut -b -15
+# tr -cd '[:punct:][:alnum:]' < /dev/urandom | fold -w30 | head -n1 |cut -b -20
 
 # Without special chars
-# tr -cd 'A-Z-a-z-0-9-)' < /dev/urandom | fold -w30 | head -n1 |cut -b -15
+# tr -cd '[:alnum:]' < /dev/urandom | fold -w30 | head -n1 |cut -b -20
 
 usage() {
 echo ""
 echo "Usage: $0 -S -z<size> "
 echo "-S  Without special characters"
-echo " <size> specify a size to use. Defaults to 15 characters"
+echo " <size> specify a size to use. Defaults to 20 characters"
 echo ""
 exit 1
 }
