@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# This will generate a random password. You can specify a length also using the options
+# and whether or not to use special chars.
+
+# With special chars
+# tr -cd 'A-Z-a-z-0-9-!-)' < /dev/urandom | fold -w30 | head -n1 |cut -b -15
+
+# Without special chars
+# tr -cd 'A-Z-a-z-0-9-)' < /dev/urandom | fold -w30 | head -n1 |cut -b -15
+
+usage() {
+echo ""
+echo "Usage: $0 -S -z<size> "
+echo "-S  Without special characters"
+echo " <size> specify a size to use. Defaults to 15 characters"
+echo ""
+exit 1
+}
+
+size=20
+spchar="yes"
+
+while getopts "Sz:" opt; do
+    case "$opt" in
+        S) spchar="no"  
+        ;;
+        z) size=${OPTARG}
+        ;;
+        *) usage
+        ;;
+    esac
+done
+
+if [[ $spchar = "no" ]]; then
+	tr -cd '[:alnum:]' < /dev/urandom | fold -w30 | head -n1 |cut -b -${size}
+else
+	tr -cd '[:punct:][:alnum:]' < /dev/urandom | fold -w30 | head -n1 |cut -b -${size}
+fi
+
+
+
